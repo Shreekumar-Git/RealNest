@@ -10,11 +10,9 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 @ControllerAdvice
 public class GlobalExceptionHandler {
 
-    // Handle missing static resources (like favicon.ico)
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<String> handleNoResource(NoResourceFoundException ex, HttpServletRequest req) {
         String path = req.getRequestURI();
-        // If browser requested favicon, return 204 No Content
         if ("/favicon.ico".equals(path) || path.endsWith("/favicon.ico")) {
             return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
         }

@@ -32,6 +32,6 @@ public interface PropertyRepository extends JpaRepository<Property, Long>{
     List<Property> findByApprovedTrue();
     List<Property> findByApprovedTrueAndLocationContainingIgnoreCase(String location);
     List<Property> findByApprovedTrueAndType(Property.Type type);
-         List<Property> findByOwner(User owner);
+    List<Property> findByOwner(User owner);
 
 }
