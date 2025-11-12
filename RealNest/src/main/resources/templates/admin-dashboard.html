@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Admin Dashboard</title>
+
+    <!-- ✅ Bootstrap 5.3 CDN -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+
+    <!-- 🌤️ Light Theme Styling -->
+    <style>
+      :root {
+        --accent: #007b83;
+        --accent-light: #17a2b8;
+        --danger: #dc3545;
+        --bg-main: #f4f8fb;
+        --card-bg: #ffffff;
+      }
+
+      body {
+        background-color: var(--bg-main);
+        font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        color: #21333c;
+        margin: 0;
+        padding: 40px 0;
+      }
+
+      .dashboard-container {
+        max-width: 1100px;
+        margin: auto;
+        background: var(--card-bg);
+        border-radius: 12px;
+        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
+        padding: 32px;
+      }
+
+      h1 {
+        text-align: center;
+        font-size: 2rem;
+        color: var(--accent);
+        font-weight: 700;
+        margin-bottom: 24px;
+      }
+
+      h2 {
+        font-size: 1.3rem;
+        color: #1f4b53;
+        border-left: 5px solid var(--accent);
+        padding-left: 10px;
+        margin-bottom: 16px;
+        font-weight: 600;
+      }
+
+      #message {
+        text-align: center;
+        font-weight: 600;
+        margin-bottom: 20px;
+      }
+
+      .btn-custom {
+        background-color: var(--accent);
+        color: white;
+        border-radius: 8px;
+        font-weight: 600;
+        transition: background-color 0.3s ease;
+      }
+
+      .btn-custom:hover {
+        background-color: var(--accent-light);
+        color: white;
+      }
+
+      .btn-danger {
+        border-radius: 8px;
+        font-weight: 600;
+      }
+
+      .user-card,
+      .property-card {
+        background: #ffffff;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: 10px;
+        padding: 16px;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+        margin-bottom: 18px;
+      }
+
+      .property-card img {
+        width: 100%;
+        border-radius: 8px;
+        margin-bottom: 10px;
+      }
+
+      .property-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 20px;
+      }
+
+      .back-home {
+        display: inline-block;
+        padding: 10px 18px;
+        background-color: var(--accent);
+        color: white;
+        border-radius: 10px;
+        font-weight: 600;
+        text-decoration: none;
+        transition: 0.3s;
+      }
+
+      .back-home:hover {
+        background-color: var(--accent-light);
+        text-decoration: none;
+      }
+
+      @media (max-width: 640px) {
+        .dashboard-container {
+          padding: 20px;
+          margin: 0 10px;
+        }
+        .property-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="dashboard-container">
+      <h1>Admin Dashboard</h1>
+
+      <!-- ✅ Back to Home Button -->
+      <div class="text-center mb-4">
+        <a href="/webpages/" class="back-home">🏠 Back to Home</a>
+      </div>
+
+      <div id="message"></div>
+
+      <!-- 👥 Users Section -->
+      <div class="section mb-5">
+        <h2>Users Details:</h2>
+        <div id="user-list">Loading users...</div>
+      </div>
+
+      <!-- 🏡 Pending Properties Section -->
+      <div class="section">
+        <h2>Pending Properties:</h2>
+        <div id="pending-properties" class="property-grid">
+          Loading properties...
+        </div>
+      </div>
+    </div>
+
+    <!-- ✅ Bootstrap JS (optional) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+      const token = localStorage.getItem("token");
+      if (!token) window.location.href = "/webpages/login";
+
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      const role = payload.role || payload.roles || "";
+
+      if (!role.includes("ADMIN")) {
+        alert("Access denied! Admins only.");
+        window.location.href = "/webpages/login";
+      }
+
+      function showMessage(text, color = "green") {
+        const msg = document.getElementById("message");
+        msg.innerHTML = `<p style="color:${color};">${text}</p>`;
+        setTimeout(() => (msg.innerHTML = ""), 3000);
+      }
+
+      async function loadUsers() {
+        try {
+          const res = await fetch("/api/admin/users", {
+            headers: { Authorization: "Bearer " + token },
+          });
+          const users = await res.json();
+          const container = document.getElementById("user-list");
+
+          container.innerHTML = users
+            .map(
+              (u) => `
+          <div class="user-card">
+            <p><strong>${u.name}</strong> (${u.email})</p>
+            <p>Role: ${u.role}</p>
+            <button class="btn btn-sm btn-custom me-2" onclick="editUser(${u.id})">Edit</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id})">Delete</button>
+          </div>
+        `
+            )
+            .join("");
+        } catch (e) {
+          showMessage("Failed to load users", "red");
+        }
+      }
+
+      async function editUser(id) {
+        try {
+          const res = await fetch("/api/admin/users", {
+            headers: { Authorization: "Bearer " + token },
+          });
+          const users = await res.json();
+          const user = users.find((u) => u.id === id);
+          if (!user) return showMessage("User not found", "red");
+
+          const newName = prompt("Enter new name:", user.name);
+          const newRole = prompt(
+            "Enter new role (ROLE_ADMIN / ROLE_CUSTOMER):",
+            user.role
+          );
+          if (!newName || !newRole) return;
+
+          const updatedUser = { ...user, name: newName, role: newRole };
+
+          const updateRes = await fetch(`/api/admin/update/${id}`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + token,
+            },
+            body: JSON.stringify(updatedUser),
+          });
+
+          if (updateRes.ok) {
+            showMessage("User updated successfully");
+            loadUsers();
+          } else {
+            showMessage("Failed to update user", "red");
+          }
+        } catch (e) {
+          showMessage("Error updating user", "red");
+        }
+      }
+
+      async function deleteUser(id) {
+        if (!confirm("Delete this user?")) return;
+        try {
+          const res = await fetch(`/api/admin/delete/${id}`, {
+            method: "DELETE",
+            headers: { Authorization: "Bearer " + token },
+          });
+
+          if (res.ok) {
+            showMessage("User deleted successfully");
+            loadUsers();
+          } else {
+            showMessage("Failed to delete user", "red");
+          }
+        } catch (e) {
+          showMessage("Error deleting user", "red");
+        }
+      }
+
+      async function loadPendingProperties() {
+        try {
+          const res = await fetch("/api/properties", {
+            headers: { Authorization: "Bearer " + token },
+          });
+          const properties = await res.json();
+          const pending = properties.filter((p) => !p.approved);
+          const container = document.getElementById("pending-properties");
+
+          container.innerHTML = pending
+            .map(
+              (p) => `
+          <div class="property-card">
+            <img src="${
+              p.imageUrl || "https://via.placeholder.com/300x200?text=No+Image"
+            }" alt="${p.title}">
+            <h5>${p.title}</h5>
+            <p>${p.description}</p>
+            <p><strong>Owner:</strong> ${p.owner.name} (${p.owner.email})</p>
+            <button class="btn btn-sm btn-custom me-2" onclick="approveProperty(${
+              p.id
+            })">Approve</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteProperty(${
+              p.id
+            }, '${p.owner.email}')">Delete</button>
+          </div>
+        `
+            )
+            .join("");
+        } catch (e) {
+          showMessage("Failed to load properties", "red");
+        }
+      }
+
+      async function approveProperty(id) {
+        try {
+          const res = await fetch(`/api/properties/approve/${id}`, {
+            method: "PUT",
+            headers: { Authorization: "Bearer " + token },
+          });
+          if (res.ok) {
+            showMessage("Property approved");
+            loadPendingProperties();
+          } else {
+            showMessage("Failed to approve property", "red");
+          }
+        } catch (e) {
+          showMessage("Error approving property", "red");
+        }
+      }
+
+      async function deleteProperty(id, email) {
+        if (!confirm("Delete this property?")) return;
+        try {
+          const res = await fetch(
+            `/api/properties/delete/${id}?email=${email}`,
+            {
+              method: "DELETE",
+              headers: { Authorization: "Bearer " + token },
+            }
+          );
+          if (res.ok) {
+            showMessage("Property deleted successfully");
+            loadPendingProperties();
+          } else {
+            showMessage("Failed to delete property", "red");
+          }
+        } catch (e) {
+          showMessage("Error deleting property", "red");
+        }
+      }
+
+      loadUsers();
+      loadPendingProperties();
+    </script>
+  </body>
+</html>
