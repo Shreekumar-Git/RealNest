@@ -1,14 +1,26 @@
-# Build stage
-FROM maven:3.8.8-eclipse-temurin-17 as build
-WORKDIR /app
-COPY pom.xml .
-COPY src ./src
-RUN mvn -DskipTests package -DskipTests=true
+# Run this project with java 21
 
-# Runtime stage
-FROM eclipse-temurin:17-jdk-jammy
+# ---------- Stage 1: Build ----------
+FROM maven:3.9.9-eclipse-temurin-21 AS build
 WORKDIR /app
+
+# Copy pom.xml and download dependencies (cached)
+COPY pom.xml .
+RUN mvn dependency:go-offline
+
+# Copy the rest of the source code and build the JAR
+COPY src ./src
+RUN mvn clean package -DskipTests
+
+# ---------- Stage 2: Run ----------
+FROM openjdk:21-jdk-slim
+WORKDIR /app
+
+# Copy only the built JAR from the build stage
 COPY --from=build /app/target/*.jar app.jar
-ENV PORT 8080
+
+# Expose Render's port
 EXPOSE 8080
-CMD ["sh", "-c", "java -Dserver.port=${PORT} -jar /app/app.jar"]
+
+# Run the Spring Boot application
+ENTRYPOINT ["java", "-jar", "app.jar"]
